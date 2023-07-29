@@ -1,0 +1,4 @@
+export EC_API_KEY=
+
+# Terraform variables
+export TF_VAR_gcp_vcp_endpoint_id=
