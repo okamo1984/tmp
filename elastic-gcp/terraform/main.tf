@@ -24,7 +24,17 @@ resource "ec_deployment" "evaluation_trial" {
     ec_deployment_traffic_filter.gcp_psc.id
   ]
 
-  elasticsearch = {}
+  deployment_template_id = "gcp-compute-optimized"
+
+  elasticsearch = {
+    hot = {
+      autoscaling = {
+        max_size = "1"
+      }
+      zone_count = 1
+      size = "1"
+    }
+  }
 
   kibana = {}
 
