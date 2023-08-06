@@ -1,20 +1,29 @@
-# Elastic
-locals {
-  version    = "latest"
-  region     = "gcp-asia-northeast1"
+terraform {
+  required_version = ">= 1.0.0"
+
+  required_providers {
+    ec = {
+      source  = "elastic/ec"
+      version = "0.7.0"
+    }
+  }
 }
 
-provider "ec" {}
+locals {
+  version = "latest"
+}
 
 data "ec_stack" "latest" {
   version_regex = local.version
-  region        = local.region
+  region        = var.region
 }
 
 resource "ec_deployment" "evaluation_trial" {
-  name = "evaluation-trial"
+  # If not specified, detect `ec` as hashicorp/es
+  provider = ec
+  name     = "evaluation-trial"
 
-  region  = local.region
+  region  = var.region
   version = data.ec_stack.latest.version
 
   traffic_filter = [
@@ -43,9 +52,10 @@ resource "ec_deployment" "evaluation_trial" {
 }
 
 resource "ec_deployment_traffic_filter" "gcp_psc" {
-  name   = "psc-elastic-cloud"
-  region = local.region
-  type   = "gcp_private_service_connect_endpoint"
+  provider = ec
+  name     = "psc-elastic-cloud"
+  region   = var.region
+  type     = "gcp_private_service_connect_endpoint"
 
   rule {
     source = var.gcp_psc_connection_id
