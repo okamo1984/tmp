@@ -14,9 +14,11 @@ terraform {
 }
 
 locals {
-  project_id     = var.project_id
-  region         = "asia-northeast1"
-  psc_ip_address = "10.1.0.2"
+  project_id       = var.project_id
+  region           = "asia-northeast1"
+  psc_ip_address   = "10.1.0.2"
+  zone             = "asia-northeast1-b"
+  ssh_machine_type = "f1-micro"
 }
 
 provider "google" {
@@ -96,4 +98,37 @@ resource "google_dns_record_set" "psc" {
   managed_zone = google_dns_managed_zone.psc_elastic.name
 
   rrdatas = [local.psc_ip_address]
+}
+
+resource "google_compute_instance" "psc_connection_test" {
+  name         = "psc-connection-test"
+  machine_type = local.ssh_machine_type
+  zone         = local.zone
+
+  boot_disk {
+    initialize_params {
+      image = "debian-11-bullseye-v20230711"
+      size  = 10
+    }
+  }
+
+  network_interface {
+    network    = google_compute_network.vpc_elastic.self_link
+    subnetwork = google_compute_subnetwork.vpc_elastic_sub.self_link
+
+    access_config {}
+  }
+
+  scheduling {
+    automatic_restart  = false
+    preemptible        = true
+    provisioning_model = "SPOT"
+  }
+
+  service_account {
+    scopes = [
+      "https://www.googleapis.com/auth/service.management.readonly",
+      "https://www.googleapis.com/auth/servicecontrol"
+    ]
+  }
 }
