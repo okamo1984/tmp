@@ -1,4 +1,4 @@
-variable "gcp_vcp_endpoint_id" {
+variable "gcp_psc_connection_id" {
   type = string
-  description = "VCP endpoint ID"
+  description = "PSC Connection ID"
 }
