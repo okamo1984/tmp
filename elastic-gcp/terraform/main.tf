@@ -9,7 +9,7 @@ terraform {
   }
 }
 
-locals {
-  version    = "latest"
-  region     = "gcp-asia-northeast1"
+module "elastic" {
+  source                = "./modules/elastic"
+  gcp_psc_connection_id = var.gcp_psc_connection_id
 }

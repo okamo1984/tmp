@@ -1,4 +1,9 @@
 # Elastic
+locals {
+  version    = "latest"
+  region     = "gcp-asia-northeast1"
+}
+
 provider "ec" {}
 
 data "ec_stack" "latest" {
