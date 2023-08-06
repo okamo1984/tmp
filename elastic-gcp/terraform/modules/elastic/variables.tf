@@ -6,3 +6,7 @@ variable "gcp_psc_connection_id" {
 variable "region" {
   type = string
 }
+
+variable "traffic_filter_ip_cidr" {
+  type = string
+}

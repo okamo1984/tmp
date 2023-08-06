@@ -2,3 +2,4 @@ export EC_API_KEY=
 
 # Terraform variables
 export TF_VAR_gcp_project_id=
+export TF_VAR_es_traffic_filter_ip_cidr=

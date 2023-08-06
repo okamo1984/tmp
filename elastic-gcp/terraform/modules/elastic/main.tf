@@ -27,7 +27,8 @@ resource "ec_deployment" "evaluation_trial" {
   version = data.ec_stack.latest.version
 
   traffic_filter = [
-    ec_deployment_traffic_filter.gcp_psc.id
+    ec_deployment_traffic_filter.gcp_psc.id,
+    ec_deployment_traffic_filter.ip_1.id
   ]
 
   deployment_template_id = "gcp-compute-optimized"
@@ -67,5 +68,15 @@ resource "ec_deployment_traffic_filter" "gcp_psc" {
 
   rule {
     source = var.gcp_psc_connection_id
+  }
+}
+
+resource "ec_deployment_traffic_filter" "ip_1" {
+  name   = "ip-1"
+  region = var.region
+  type   = "ip"
+
+  rule {
+    source = var.traffic_filter_ip_cidr
   }
 }
