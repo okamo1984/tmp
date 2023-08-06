@@ -34,6 +34,21 @@ resource "google_compute_network" "vpc_elastic" {
   auto_create_subnetworks = false
 }
 
+resource "google_compute_firewall" "vpc_elastic" {
+  name          = "vpc-elastic-firewall"
+  network       = google_compute_network.vpc_elastic.name
+  source_ranges = ["0.0.0.0/0"]
+
+  allow {
+    protocol = "icmp"
+  }
+
+  allow {
+    protocol = "tcp"
+    ports    = ["22"]
+  }
+}
+
 resource "google_compute_subnetwork" "vpc_elastic_sub" {
   name                     = "vpc-elastic-sub"
   ip_cidr_range            = "10.1.0.0/16"
@@ -65,6 +80,12 @@ resource "google_dns_managed_zone" "psc_elastic" {
   dns_name    = "psc.${local.region}.gcp.cloud.es.io."
   description = "DNS zone for PSC to Elastic Cloud"
   visibility  = "private"
+
+  private_visibility_config {
+    networks {
+      network_url = google_compute_network.vpc_elastic.self_link
+    }
+  }
 }
 
 resource "google_dns_record_set" "psc" {
