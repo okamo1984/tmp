@@ -44,11 +44,19 @@ resource "ec_deployment" "evaluation_trial" {
     }
   }
 
-  kibana = {}
+  kibana = {
+    size = "1g"
+    size_resource = "memory"
+    zone_count = 1
+  }
 
   integrations_server = {}
 
-  enterprise_search = {}
+  enterprise_search = {
+    size          = "2g"
+    size_resource = "memory"
+    zone_count    = 1
+  }
 }
 
 resource "ec_deployment_traffic_filter" "gcp_psc" {
