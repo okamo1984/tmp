@@ -1,0 +1,131 @@
+version: "3"
+
+services:
+  es_setup:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.9.0
+    container_name: es_setup
+    networks:
+      - elastic
+    volumes:
+      - escerts:/usr/share/elasticsearch/config/certs
+    user: "0"
+    command: |
+      bash -c '
+        if [ ! -f config/certs/ca.zip ]; then
+          bin/elasticsearch-certutil ca --silent --pem -out config/certs/ca.zip;
+          unzip config/certs/ca.zip -d config/certs;
+        fi;
+        if [ ! -f config/certs/certs.zip ]; then
+          echo "Creating certs";
+          echo -ne \
+          "instances:\n"\
+          "  - name: es\n"\
+          "    dns:\n"\
+          "      - es\n"\
+          "      - localhost\n"\
+          "    ip:\n"\
+          "      - 127.0.0.1\n"\
+          > config/certs/instances.yml;
+          bin/elasticsearch-certutil cert --silent --pem -out config/certs/certs.zip --in config/certs/instances.yml --ca-cert config/certs/ca/ca.crt --ca-key config/certs/ca/ca.key;
+          unzip config/certs/certs.zip -d config/certs;
+        fi;      
+        find config/certs -type d -exec chmod 750  \{\} \;;
+        find config/certs -type f -exec chmod 640  \{\} \;;
+        echo "Waiting for Elasticsearch availability";
+        until curl -s --cacert config/certs/ca/ca.crt https://es:9200 | grep -q "missing authentication credentials"; do sleep 30; done;
+        echo "Setting kibana_system password";
+        until curl -s -X POST --cacert config/certs/ca/ca.crt -u "elastic:elastic" -H "Content-Type: application/json" https://es:9200/_security/user/kibana_system/_password -d "{\"password\":\"kibana\"}" | grep -q "^{}"; do sleep 10; done;
+        echo "All done!";
+      '
+    healthcheck:
+      test: ["CMD-SHELL", "[ -f config/certs/es/es.crt ]"]
+      interval: 1s
+      timeout: 5s
+      retries: 120
+
+  es:
+    depends_on:
+      es_setup:
+        condition: service_healthy
+        restart: true
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.9.0
+    container_name: es
+    networks:
+      - elastic
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    volumes:
+      - esdata:/usr/share/elasticsearch/data
+      - escerts:/usr/share/elasticsearch/config/certs
+      - ./elasticsearch-plugins.yml:/usr/share/elasticsearch/config/elasticsearch-plugins.yml
+    environment:
+      - ELASTIC_PASSWORD=elastic
+      - discovery.type=single-node
+      - xpack.security.enabled=true
+      - xpack.security.http.ssl.enabled=true
+      - xpack.security.http.ssl.key=certs/es/es.key
+      - xpack.security.http.ssl.certificate=certs/es/es.crt
+      - xpack.security.http.ssl.certificate_authorities=certs/ca/ca.crt
+      - xpack.security.transport.ssl.enabled=true
+      - xpack.security.transport.ssl.key=certs/es/es.key
+      - xpack.security.transport.ssl.certificate=certs/es/es.crt
+      - xpack.security.transport.ssl.certificate_authorities=certs/ca/ca.crt
+      - xpack.security.transport.ssl.verification_mode=certificate
+    deploy:
+      resources:
+        limits:
+          cpus: "2.5"
+          memory: "2G"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    healthcheck:
+      test: curl -s --cacert config/certs/ca/ca.crt https://localhost:9200 | grep -q 'missing authentication credentials'
+      interval: 10s
+      timeout: 10s
+      retries: 120
+
+  kib:
+    depends_on:
+      es:
+        condition: service_healthy
+        restart: true
+    image: docker.elastic.co/kibana/kibana:8.9.0
+    container_name: kib
+    networks:
+      - elastic
+    ports:
+      - "5601:5601"
+    volumes:
+      - kibdata:/usr/share/kibana/data
+      - escerts:/usr/share/kibana/config/certs
+    environment:
+      - SERVERNAME=kibana
+      - ELASTICSEARCH_HOSTS=https://es:9200
+      - ELASTICSEARCH_USERNAME=kibana_system
+      - ELASTICSEARCH_PASSWORD=kibana
+      - ELASTICSEARCH_SSL_CERTIFICATEAUTHORITIES=config/certs/ca/ca.crt
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: "1G"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    healthcheck:
+      test: curl -s -I http://localhost:5601 | grep -q 'HTTP/1.1 302 Found'
+      interval: 10s
+      timeout: 10s
+      retries: 120
+
+volumes:
+  esdata:
+  kibdata:
+  escerts:
+
+networks:
+  elastic:
